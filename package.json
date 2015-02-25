@@ -1,0 +1,18 @@
+{
+  "name": "react-sticker",
+  "version": "1.0.0",
+  "description": "Creates instagram style sticky headers that collide when one header scrolls into another.",
+  "main": "index.js",
+  "dependencies": {},
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "rt2zz <zack@root-two.com>",
+  "license": "MIT",
+  "keywords": [
+    "react",
+    "sticky",
+    "component"
+  ]
+}
