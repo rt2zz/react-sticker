@@ -118,7 +118,6 @@ module.exports = React.createClass({
   },
 
   makeSticky: function (stuck){
-    console.log('ot', this._scrollNode.offsetTop)
     stuck.style.width = stuck.offsetWidth+'px'
     stuck.style.height = stuck.offsetHeight+'px'
     stuck.style.top = this._scrollNode.offsetTop
@@ -164,7 +163,14 @@ module.exports = React.createClass({
     if(set && this._stuck && relScrollTop >= downBoundary - this._stuck.offsetHeight){
       var top = Math.min(node.offsetTop, this._next.offsetTop - node.scrollTop - this._stuck.offsetHeight)
       this._stuck.style.top = top+'px'
+      return
     }
+
+    //If none of the above conditions triggered, check if we are out of bounds, and if so reset cursor
+    if(relScrollTop > downBoundary || relScrollTop < upBoundary){
+      this.findCursor()
+    }
+
   },
 
   render: function() {
