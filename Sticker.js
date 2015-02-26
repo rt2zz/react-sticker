@@ -1,21 +1,64 @@
 var React = require('react')
 
+/*@TODO
+  Add configuration props e.g.
+  * Re-sticky header on scroll down (when unset)
+  * Stuck class
+  * Default styles
+
+  Improvements
+  * Make offset containers work better (right now it does not clip the header)
+  * Bug when scrolling a container inside of an already scrolled container
+  */
+
 module.exports = React.createClass({
 
+  propTypes: {
+    useWindow: React.PropTypes.bool,
+  },
+
+  getDefaultProps: function() {
+    return {
+      useWindow: false
+    }
+  },
+
   componentWillMount: function(){
-    // this.handleScroll = _.throttle(this.handleScroll, 100)
+    // this.handleScroll = require('lodash').throttle(this.handleScroll, 100)
   },
 
   componentDidMount: function() {
+    this.initialize()
+    if(this.props.useWindow){
+      window.addEventListener('scroll', this.handleScroll)
+      window.addEventListener('resize', this.initialize)
+    }
+  },
+
+  componentDidUpdate: function() {
+    this.initialize()
+  },
+
+  componentWillUnmount: function() {
+    window.removeEventListener('scroll', this.handleScroll);
+    window.removeEventListener('resize', this.initialize);
+  },
+
+  initialize: function(){
+    this._scrollNode = this.props.useWindow ? document.body : this.getDOMNode()
+    this.findStickies()
     this.findCursor()
-    this.setStuckAndNext(true)
+    this.setStuck()
+  },
+
+  findStickies: function(){
+    var node = this._scrollNode
+    this._stickies = node.querySelectorAll('[data-sticky]')
   },
 
   findCursor: function(){
-    var node = this.getDOMNode()
-    //assume stickies are already sorted by offsetTop
-    var stickies = node.querySelectorAll('[data-sticky]')
-    this._stickies = stickies
+    var node = this._scrollNode
+    var stickies = this._stickies
 
     //find the current stuck and next sticky elements
     if(stickies[0].offsetTop > node.scrollTop){
@@ -35,11 +78,27 @@ module.exports = React.createClass({
         }
       }
     }
+    this.setNodes()
   },
 
-  setStuckAndNext: function(setNew){
-    var cursor = this._cursor
+  setNodes: function(){
+    this._stuck = this._stickies[this._cursor]
+    this._next = this._stickies[this._cursor+1] || null
+  },
+
+  setStuck: function(){
     //remove last stuck and placeholder
+    this.unset()
+    this.setNodes()
+
+    if(this._stuck){
+      //insert placeholder
+      this.insertPlaceholder(this._stuck)
+      this.makeSticky(this._stuck)
+    }
+  },
+
+  unset: function(){
     if(this._stuck){
       this._stuck.style.position = 'inherit'
       this._stuck.style.top = null
@@ -47,18 +106,8 @@ module.exports = React.createClass({
       if(this._placeHolder) this._stuck.parentNode.removeChild(this._placeHolder)
       this._placeHolder = null
       this._stuck = null
-      this._set = false
     }
-
-    this._stuck = this._stickies[cursor] || null
-    this._next = this._stickies[cursor+1]
-
-    if(this._stuck && setNew){
-      //insert placeholder
-      this.insertPlaceholder(this._stuck)
-      this.makeSticky(this._stuck)
-      this._set = true
-    }
+    this._next = null
   },
 
   insertPlaceholder: function(stuck){
@@ -69,46 +118,59 @@ module.exports = React.createClass({
   },
 
   makeSticky: function (stuck){
+    console.log('ot', this._scrollNode.offsetTop)
     stuck.style.width = stuck.offsetWidth+'px'
     stuck.style.height = stuck.offsetHeight+'px'
-    stuck.style.top = 0
+    stuck.style.top = this._scrollNode.offsetTop
     stuck.style.position = 'fixed'
     stuck.classList.add('stuck')
   },
 
+  /*
+  This handler does as little work as possible, checking if
+    a) the scrollTop has hit our up or down boundaries
+        -> Change cursor and update sticky state
+    b) if nothing is "set" and we are scrolling down
+        -> Update boundaries
+  */
   handleScroll: function(){
-    var node = this.getDOMNode()
-    //if the cursor is not considered "set" and we are scrolling down, reset it
-    if(this._lastScrollTop < node.scrollTop && !this._set){
-      this.findCursor()
-      this.setStuckAndNext(false)
-      this._set = true
-    }
-    this._lastScrollTop = node.scrollTop
-
-    //downBoundary triggers the next cursor increment
+    var node = this._scrollNode
     var downBoundary = this._next && this._next.offsetTop
-    //upBoundary triggers a cursor decrement, and unsets the stuck element
     var upBoundary = this._placeHolder && this._placeHolder.offsetTop
+    var set = (this._cursor === -1 || upBoundary) ? true : false
+    var relScrollTop = node.offsetTop + node.scrollTop
 
-    if(node.scrollTop >= downBoundary){
+    //If we are not set, reset cursor on next downward scroll.  This will get called once to set this new up/down boundaries
+    if(!set && this._lastScrollTop < relScrollTop){
+      this.findCursor()
+      //If we have crossed our downward boundary, make sticky
+      if(downBoundary && downBoundary < node.scrollTop) this.setStuck(true)
+      return
+    }
+    this._lastScrollTop = relScrollTop
+
+    //Check if we have hit our boundaries and change the cursor and stuck state accordingly
+    if(downBoundary && relScrollTop >= downBoundary){
       this._cursor++
-      this.setStuckAndNext(true)
+      this.setStuck(true)
+      return
     }
-    if(upBoundary && node.scrollTop <= upBoundary){
-      this._set = false
+    if(upBoundary && relScrollTop <= upBoundary){
       this._cursor--
-      this.setStuckAndNext(false)
+      this.unset()
+      return
     }
-    if(this._stuck && node.scrollTop >= downBoundary - this._stuck.offsetHeight){
-      var top = Math.min(0, this._next.offsetTop - node.scrollTop - this._stuck.offsetHeight)
+    //Check for Sticky collision and adjust top position accordingly
+    if(set && this._stuck && relScrollTop >= downBoundary - this._stuck.offsetHeight){
+      var top = Math.min(node.offsetTop, this._next.offsetTop - node.scrollTop - this._stuck.offsetHeight)
       this._stuck.style.top = top+'px'
     }
   },
 
   render: function() {
+    var stickerOnScroll = this.props.useWindow ? null : this.handleScroll
     return(
-      <div {...this.props} onScroll={this.handleScroll}>
+      <div {...this.props} onScroll={stickerOnScroll}>
         {this.props.children}
       </div>
     )

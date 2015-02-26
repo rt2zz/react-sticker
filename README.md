@@ -4,6 +4,9 @@ Creates instagram style sticky headers that collide when one header scrolls into
 **Warning: Work in Progress**  
 This is an experiment. This does not follow idiomatic react and does not current have a lot of configurability. If you need something like this, but this is not work out of the box for you please file an issue and I will add configuration options to support a wider set of use cases.
 
+**Example**  
+[react-sticker-example](https://github.com/rt2zz/react-sticker-example)
+
 ### Usage
 ```js
 var Sticker = require('react-sticker')
