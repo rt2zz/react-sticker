@@ -29,7 +29,6 @@ var jsx = (
     <div>
       <Sticky><h2>First Sticky</h2></Sticky>
       <div style={{height: 500}} >Contents</div>
-      <br /><br /><br /><br /><br />
     </div>
     <div>
       <Sticky><h2>Second Sticky</h2></Sticky>
